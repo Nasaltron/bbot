@@ -14,7 +14,14 @@ class droopescan(BaseModule):
 
     async def setup(self):
         try:
-            # 1. Install droopescan
+            # Install pipx if not available (common in Docker/CI/minimal envs)
+            pipx_check = await self.helpers.run(["which", "pipx"])
+            if pipx_check.returncode != 0:
+                await self.helpers.run(["python", "-m", "pip", "install", "--user", "pipx"])
+                # Add to PATH (pipx install adds to ~/.local/bin)
+                os.environ["PATH"] = f"{os.path.expanduser('~/.local/bin')}:{os.environ.get('PATH', '')}"
+
+            # 1. Install droopescan via pipx
             await self.helpers.run(["pipx", "install", "droopescan", "--force"])
 
             # 2. Patch Cement for Python 3.12+ BEFORE anything tries to import it
@@ -53,7 +60,7 @@ class droopescan(BaseModule):
         if not url.startswith(("http://", "https://")):
             return
 
-        cmd = ["droopescan", "scan", "--url", url, "--no-banner", "--format", "json"]
+        cmd = ["droopescan", "scan", "--url", url, "--no-banner", "--output", "json"]
 
         try:
             result = await self.helpers.run(cmd)
